@@ -37,6 +37,42 @@ LineColors:	.byte 7 		# White [0]
 		.byte 8 		# White [8]
 		.byte 7 		# White [9]
 		
+#--------------------------------------------------------------------------------------
+# * The numbers on the board
+#--------------------------------------------------------------------------------------
+DefaultBoard:	.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		.byte '0' : 9
+		
+#--------------------------------------------------------------------------------------
+# * The string used to get info for the board from
+#--------------------------------------------------------------------------------------	
+InputBuffer:	.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11
+		.byte '0' : 11	
+
+#--------------------------------------------------------------------------------------
+# * The location of the number to be displayed
+#--------------------------------------------------------------------------------------
+NumberStr:	.asciiz "0"
+
+#--------------------------------------------------------------------------------------
+# * Temp location for the board to read in
+#--------------------------------------------------------------------------------------
+TempText:	.asciiz "Test.txt"
+		
 .text
 #======================================================================================
 # * Main Process
@@ -45,6 +81,10 @@ Main:
 	jal	DrawBackground		# Draw the background on the display
 	
 	jal	DrawBoard		# Draw the lines that make up the board
+	
+	jal	LoadBoard		# Load the board in
+	
+	jal	DrawNumbers		# Draw the numbers on the board
 	
 	li	$v0, 10			# Call program exit
 	syscall
@@ -160,6 +200,82 @@ board_loop:
 	jal	DrawHorzLine
 	lw	$ra, 0($sp)
 	addu	$sp, $sp, 4
+	
+	jr	$ra
+	
+#======================================================================================
+# * Load Board
+#--------------------------------------------------------------------------------------
+# Load the board from a text file
+#======================================================================================	
+LoadBoard:
+	la	$a0, TempText		# Use the temporary text file for now
+	li	$a1, 0			# Read in mode
+	li	$a2, 0			# Mode is ignored
+	li	$v0, 13			# Prepare to open a text file
+	syscall				# Open the file
+	
+	move	$a0, $v0		# Setup the to read the characters in
+	la	$a1, InputBuffer	# Use the board as the buffer
+	li	$a2, 99			# It's a 9x9 board, thus we have 81 elements with 9 new lines which consists of a '\n' and a '\r' character
+	li	$v0, 14			# Prepare to read text
+	syscall				# Read the text
+	
+	li	$t1, 0			# Setup a loop counter
+	la	$t2, DefaultBoard	# Gets the boad buffer
+square_loop:
+	lb	$t0, 0($a1)		# Get the address from the board
+	beq	$t0, '\n', lp_end	# Skip a new line without incrementng the counter
+	beq	$t0, '\r', lp_end	# Skip a new line without incrementng the counter
+	subi	$t0, $t0, '0'		# Adjust to a number
+	beqz	$t0, sv_num		# If the number is 0, then don't lock the number in
+	ori	$t0, $t0, 0x10		# A 1 in the upper 4 bits means that the number can't be edited
+sv_num: sb	$t0, 0($t2) 
+	
+	addi	$t1, $t1, 1		# Increment the loop counter
+	addi	$t2, $t2, 1		# Increment the board location
+lp_end:	addi	$a1, $a1, 1		# Increment the address	of the input buffer
+	blt	$t1, 81, square_loop	# If there are still squares, go back 
+	
+	li	$v0, 16			# Close the text file
+	syscall
+	
+	jr	$ra
+	
+#======================================================================================
+# * Draw Numbers
+#--------------------------------------------------------------------------------------
+# Draws the numbers on the board
+#======================================================================================	
+DrawNumbers:
+	li	$a0, 0			# Setup counters for the X
+	
+col_loop:	
+	li	$a1, 0			# Setup a y counter
+	
+row_loop:
+	la	$t0, DefaultBoard	# Get the default board
+	addu	$t0, $t0, $a0		# Factor in the component of the array
+	mul	$t1, $a1, 9		# Get the y component of the array
+	addu	$t0, $t0, $t1
+	lb	$a2, 0($t0)		# Get the number at the given position
+	andi	$a2, $a2, 0xf		# Only keep the lower 4 bits of the number
+
+	subu	$sp, $sp, 12		# Draw the number saved at those coordinate
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	sw	$a1, 8($sp)
+	jal	DrawNum
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	lw	$a1, 8($sp)
+	addu	$sp, $sp, 12
+
+	addi	$a1, $a1, 1		# Increment the y counter
+	blt	$a1, 9, row_loop	# and go back if less than 9
+	
+	addi	$a0, $a0, 1		# Increment the x counter
+	blt	$a0, 9, col_loop	# and go back if less than 9
 	
 	jr	$ra
 
@@ -333,7 +449,7 @@ y_loop:
 # @return: $v0 is the address of the pixel
 #======================================================================================
 GetPixel:
-	lw	$t2, ScreenSize`	# Get the screen size
+	lw	$t2, ScreenSize		# Get the screen size
 	mul	$t2, $t2, 4		# Multiply the screen size by 4, to account for memory
 	mul	$t0, $a0, 4		# Get the address part of the x-ccordinate
 	mul	$t1, $a1, $t2		# Get the address part of the y-coordinate
@@ -363,6 +479,44 @@ FillPixel:
 	addu	$t1, $t0, $t1		
 	lw	$t2, 0($t1)
 	sw	$t2, 0($v0)
+	
+	jr	$ra
+	
+#======================================================================================
+# * Draw Number
+#--------------------------------------------------------------------------------------
+# Draws a number in a given square
+# @param: $a0 is the x coodinate
+# @param: $a1 is the y coordinate
+# @param: $a2 is the number
+#======================================================================================
+DrawNum:
+	blez	$a2, post_draw		# Don't draw a 0
+	addi	$a2, $a2, '0'		# Convert from the number to a character
+	sb	$a2, NumberStr		# Save it to the buffer
+	la	$a2, NumberStr
+	
+	lw	$t0, ScreenSize		# Get the screen size in pixels
+	rem	$t1, $t0, 10		# and mod it by 10
+	div	$t1, $t1, 2		# Get halfway across to get the original offset
+	div	$t2, $t0, 10		# Get the width of each of the boxes
+	div	$t3, $t2, 2		# Move the board over by half the pixel width
+	add	$t1, $t1, $t3
+	
+	mul	$a0, $a0, $t2		# X = x * box_width + offset + 12
+	add	$a0, $a0, $t3
+	add	$a0, $a0, 12
+	mul	$a1, $a1, $t2		# Y = y * box_width + offset + 8
+	add	$a1, $a1, $t3
+	add	$a1, $a1, 8
+	
+	subu	$sp, $sp, 4
+	sw	$ra, 0($sp)
+	jal	OutText
+	lw	$ra, 0($sp)
+	addu	$sp, $sp, 4
+	
+post_draw:
 	
 	jr	$ra
 	
