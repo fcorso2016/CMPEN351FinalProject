@@ -503,12 +503,12 @@ DrawNum:
 	div	$t3, $t2, 2		# Move the board over by half the pixel width
 	add	$t1, $t1, $t3
 	
-	mul	$a0, $a0, $t2		# X = x * box_width + offset + 12
+	mul	$a0, $a0, $t2		# X = x * box_width + offset + 11
 	add	$a0, $a0, $t3
-	add	$a0, $a0, 12
-	mul	$a1, $a1, $t2		# Y = y * box_width + offset + 8
+	add	$a0, $a0, 11
+	mul	$a1, $a1, $t2		# Y = y * box_width + offset + 10
 	add	$a1, $a1, $t3
-	add	$a1, $a1, 8
+	add	$a1, $a1, 10
 	
 	subu	$sp, $sp, 4
 	sw	$ra, 0($sp)
