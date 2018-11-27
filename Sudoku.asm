@@ -71,13 +71,20 @@ NumberStr:	.asciiz "0"
 #--------------------------------------------------------------------------------------
 # * Temp location for the board to read in
 #--------------------------------------------------------------------------------------
-TempText:	.asciiz "Test.txt"
+TempText:	.asciiz "Board01.txt"
+
+#--------------------------------------------------------------------------------------
+# * The location of the player on the board
+#--------------------------------------------------------------------------------------
+Index:		.word	0
 		
 .text
 #======================================================================================
 # * Main Process
 #======================================================================================
 Main:
+	# TODO: Load a random board from the list of boards
+
 	jal	DrawBackground		# Draw the background on the display
 	
 	jal	DrawBoard		# Draw the lines that make up the board
@@ -85,6 +92,104 @@ Main:
 	jal	LoadBoard		# Load the board in
 	
 	jal	DrawNumbers		# Draw the numbers on the board
+	
+	li	$a0, 7			# Draw the intial cursor position 
+	jal	DrawCursor		
+	
+getCharacterInput:
+	li	$v0, 12			# Get a character from the user
+	syscall
+
+	subu	$sp, $sp, 4		# Store the retrieved character
+	sw	$v0, 0($sp)
+	li	$a0, 0			# Clear the current cursor position
+	jal	DrawCursor
+	lw	$v0, 0($sp)	
+	addu	$sp, $sp, 4
+	
+	
+	# Process the movement of the game
+	beq	$v0, 'w', moveUp
+	beq	$v0, 'W', moveUp
+	beq	$v0, 's', moveDown
+	beq	$v0, 'S', moveDown
+	beq	$v0, 'd', moveRight
+	beq	$v0, 'D', moveRight
+	beq	$v0, 'a', moveLeft
+	beq	$v0, 'A', moveLeft
+	beq	$v0, 'e', intakeNumber
+	beq	$v0, 'E', intakeNumber
+	j	moveCursor		# If you don't find a direction, just redraw the cursor and move on
+moveUp:
+	lw	$t0, Index		# Move the index up if greater than or equal to 9
+	blt	$t0, 9, moveCursor
+	sub	$t0, $t0, 9
+	sw	$t0, Index
+	
+	j	moveCursor		# Draw the new cursor
+moveDown:
+	lw	$t0, Index		# Move the index down if less or equal to 71
+	bgt	$t0, 71, moveCursor
+	add	$t0, $t0, 9
+	sw	$t0, Index
+	
+	j	moveCursor		# Draw the new cursor
+moveRight:
+	lw	$t0, Index		# Move the index right if less than 80
+	bge	$t0, 80, moveCursor
+	add	$t0, $t0, 1
+	sw	$t0, Index
+	
+	j	moveCursor		# Draw the new cursor
+moveLeft:
+	lw	$t0, Index		# Move the index left if greater than 0
+	ble	$t0, 0, moveCursor
+	sub	$t0, $t0, 1
+	sw	$t0, Index
+	
+	j	moveCursor		# Draw the new cursor
+	
+intakeNumber:
+	la	$t0, DefaultBoard	# Get the position to overwrite
+	lw	$t1, Index
+	add	$t0, $t0, $t1
+	
+	lb	$t1, 0($t0)		# Get the character
+	and	$t1, $t1, 0xf0		# Get the upper 4 bits
+	srl	$t1, $t1, 4
+	bgtu	$t1, 0, moveCursor	# If the number if pre-placed, you can't move it
+
+	subu	$sp, $sp, 4		# Save the position of the board in memory
+	sw	$t0, 0($sp)
+	li	$a0, 6			# Make the cursor yellow
+	jal	DrawCursor
+	lw	$t0, 0($sp)
+	addu	$sp, $sp, 4
+	
+	li	$v0, 12			# Get a character from the user
+	syscall
+	
+	beq	$v0, 'q', moveCursor	# If the user cancels go back
+	beq	$v0, 'Q', moveCursor
+	blt	$v0, '1', intakeNumber	# If not a digit, try again
+	bgt	$v0, '9', intakeNumber
+	
+	subu	$v0, $v0, '0'		# Adjust for the number
+	sb	$v0, 0($t0)		# Place the number in the board
+	
+	rem	$a0, $t1, 9		# Get the coordinate of the number
+	div	$a1, $t1, 9
+	move	$a2, $v0		# Move the number into the arguemnts
+	jal	DrawNum			# Draw the number on the board
+	
+	# TODO: Add a victory check for the game
+	
+moveCursor:
+	li	$a0, 7			# Draw the cursor
+	jal	DrawCursor
+	
+	j	getCharacterInput
+
 	
 	li	$v0, 10			# Call program exit
 	syscall
@@ -491,24 +596,19 @@ FillPixel:
 # @param: $a2 is the number
 #======================================================================================
 DrawNum:
+	subu	$sp, $sp, 4		# Get the position of the number
+	sw	$ra, 0($sp)
+	jal	GetPositionOffset
+	lw	$ra, 0($sp)
+	addu	$sp, $sp, 4
+
+	add	$a0, $v0, 11		# Offset the positions as needed
+	add	$a1, $v1, 10
+
 	blez	$a2, post_draw		# Don't draw a 0
 	addi	$a2, $a2, '0'		# Convert from the number to a character
 	sb	$a2, NumberStr		# Save it to the buffer
 	la	$a2, NumberStr
-	
-	lw	$t0, ScreenSize		# Get the screen size in pixels
-	rem	$t1, $t0, 10		# and mod it by 10
-	div	$t1, $t1, 2		# Get halfway across to get the original offset
-	div	$t2, $t0, 10		# Get the width of each of the boxes
-	div	$t3, $t2, 2		# Move the board over by half the pixel width
-	add	$t1, $t1, $t3
-	
-	mul	$a0, $a0, $t2		# X = x * box_width + offset + 11
-	add	$a0, $a0, $t3
-	add	$a0, $a0, 11
-	mul	$a1, $a1, $t2		# Y = y * box_width + offset + 10
-	add	$a1, $a1, $t3
-	add	$a1, $a1, 10
 	
 	subu	$sp, $sp, 4
 	sw	$ra, 0($sp)
@@ -517,7 +617,64 @@ DrawNum:
 	addu	$sp, $sp, 4
 	
 post_draw:
+	jr	$ra
 	
+#======================================================================================
+# * Draw Cursor
+#--------------------------------------------------------------------------------------
+# Draws a the cursor on the screen
+# @param: $a0 is the color of the line
+#======================================================================================
+DrawCursor:
+	move	$a2, $a0		# Move the argument to where it's needed to be
+	
+	lw	$t0, Index		# Get the index of the player
+	rem	$a0, $t0, 9		# Get the x for the index
+	div	$a1, $t0, 9		# Get the y for the index
+	
+	subu	$sp, $sp, 8		# Get the position of the number
+	sw	$ra, 0($sp)
+	sw	$a2, 4($sp)
+	jal	GetPositionOffset
+	lw	$ra, 0($sp)
+	lw	$a2, 4($sp)
+	addu	$sp, $sp, 8
+
+	add	$a0, $v0, 11		# Offset the positions as needed
+	add	$a1, $v1, 25
+	
+	li	$a3, 12			# Get the length of the line
+	
+	subu	$sp, $sp, 4		# Draw the line
+	sw	$ra, 0($sp)
+	jal	DrawHorzLine
+	lw	$ra, 0($sp)
+	addu	$sp, $sp, 4
+	
+	jr	$ra
+	
+#======================================================================================
+# * Get Pixel Offset
+#--------------------------------------------------------------------------------------
+# Gets the x and y coordinates of a given box
+# @param: $a0 is the x coodinate
+# @param: $a1 is the y coordinate
+# @return: $v0 as the drawing position
+# @return: $v1 as the drawing position
+#======================================================================================
+GetPositionOffset:
+	lw	$t0, ScreenSize		# Get the screen size in pixels
+	rem	$t1, $t0, 10		# and mod it by 10
+	div	$t1, $t1, 2		# Get halfway across to get the original offset
+	div	$t2, $t0, 10		# Get the width of each of the boxes
+	div	$t3, $t2, 2		# Move the board over by half the pixel width
+	add	$t1, $t1, $t3
+	
+	mul	$v0, $a0, $t2		# X = x * box_width + offset
+	add	$v0, $v0, $t3
+	mul	$v1, $a1, $t2		# Y = y * box_width + offset
+	add	$v1, $v1, $t3
+
 	jr	$ra
 	
 #======================================================================================
