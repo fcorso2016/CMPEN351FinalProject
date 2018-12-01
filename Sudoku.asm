@@ -30,11 +30,11 @@ LineColors:	.byte 7 		# White [0]
 		.byte 8 		# Off-White [1]
 		.byte 8 		# Off-White [2]
 		.byte 7 		# White [3]
-		.byte 8 		# White [4]
-		.byte 8 		# White [5]
+		.byte 8 		# Off-White [4]
+		.byte 8 		# Off-White [5]
 		.byte 7 		# White [6]
-		.byte 8 		# White [7]
-		.byte 8 		# White [8]
+		.byte 8 		# Off-White [7]
+		.byte 8 		# Off-White [8]
 		.byte 7 		# White [9]
 		
 #--------------------------------------------------------------------------------------
@@ -69,21 +69,66 @@ InputBuffer:	.byte '0' : 11
 NumberStr:	.asciiz "0"
 
 #--------------------------------------------------------------------------------------
-# * Temp location for the board to read in
+# * Location for the board to read in
 #--------------------------------------------------------------------------------------
-TempText:	.asciiz "Board01.txt"
+BoardText:	.asciiz "Boards/Board00.txt"
+
+#--------------------------------------------------------------------------------------
+# * The number of possible boards
+#--------------------------------------------------------------------------------------
+MaxBoards:	.word	50
 
 #--------------------------------------------------------------------------------------
 # * The location of the player on the board
 #--------------------------------------------------------------------------------------
 Index:		.word	0
+
+#--------------------------------------------------------------------------------------
+# * The notes of the fanfare
+#--------------------------------------------------------------------------------------
+fanfare: # The pitch and the duration
+	.half	84,  150		# Measure 1
+	.half	84,  150	
+	.half	 0,  150
+	.half	82,  150
+	################
+	.half	 0,   75		# Measure 2
+	.half	84,  150
+	.half	82,   75
+	.half	84,  150
+	.half	82,  150
+	################
+	.half	79,  150		# Measure 3
+	.half	79,  150
+	.half	77,  150
+	.half	79,  150
+	################
+	.half	 0,  600		# Measure 4
+	################
+	.half	84,  150		# Measure 5
+	.half	84,  150
+	.half	82,  150
+	.half	84,  150
+	################
+	.half	84,   75		# Measure 6
+	.half	84,  150
+	.half	82,   75
+	.half	84,  150
+	.half	82,  150
+	################
+	.half	79,  150		# Measure 7
+	.half	79,  150
+	.half	77,  150
+	.half	74,  150
+	################
+	.half	 0,    0		# Music terminator
 		
 .text
 #======================================================================================
 # * Main Process
 #======================================================================================
 Main:
-	# TODO: Load a random board from the list of boards
+	jal 	InitializeGame		# Initialize the game
 
 	jal	DrawBackground		# Draw the background on the display
 	
@@ -177,22 +222,56 @@ intakeNumber:
 	subu	$v0, $v0, '0'		# Adjust for the number
 	sb	$v0, 0($t0)		# Place the number in the board
 	
+	lw	$t1, Index		# Get the index again
 	rem	$a0, $t1, 9		# Get the coordinate of the number
 	div	$a1, $t1, 9
 	move	$a2, $v0		# Move the number into the arguemnts
 	jal	DrawNum			# Draw the number on the board
 	
-	# TODO: Add a victory check for the game
+	jal 	CheckVictory		# Check for a victory from the player
+	bnez	$v0, endGame		# If the player wins, exixt the game
 	
 moveCursor:
 	li	$a0, 7			# Draw the cursor
 	jal	DrawCursor
 	
 	j	getCharacterInput
-
 	
-	li	$v0, 10			# Call program exit
+endGame:
+	jal 	PlayFanfare		# Play the victory fanfare
+
+	li	$v0, 10			# Exit the game
 	syscall
+
+#======================================================================================
+# * Initialize Game
+#--------------------------------------------------------------------------------------
+# Initialize all the game information
+#======================================================================================	
+InitializeGame:
+	li	$v0, 30			# Seed the RNG
+	syscall
+	li	$v0, 40
+	syscall
+	
+	li	$a0, 40			# Generate a random number between 1 and the number of boards
+	lw	$a1, MaxBoards
+	sub	$a1, $a1, 1
+	li	$v0, 42
+	syscall
+	addi	$t0, $a0, 1
+	
+	la	$t2, BoardText		# Get the board's address
+	
+	div	$t1, $t0, 10		# Replace the tens digit
+	addi	$t1, $t1, '0'
+	sb	$t1, 12($t2)		# First digit is at the 12th position
+	
+	rem	$t1, $t0, 10		# Replace the ones digit
+	addi	$t1, $t1, '0'
+	sb	$t1, 13($t2)		# Second digit is at the 13th position
+	
+	jr	$ra
 
 
 #======================================================================================
@@ -279,32 +358,51 @@ board_loop:
 	addi	$t4, $t4, 1		# Increment the loop counter
 	blt	$t4, 10, board_loop	# If counter is less than 10, go back
 	
-	# Redraw the outer lines to reinforce the boarder
+	# Redraw the white lines to reinforce the boarder
+	li	$t4, 0			# Setup a loop counter
 	move	$a0, $t1		# Get the offset of the vertical lines
 	move	$a1, $t1		# to set the X and Y
-	lb	$a2, LineColors		# Ge the color of the first line
+	lb	$a2, LineColors		# Get the color of the first line
 	sub	$a3, $t0, $t1		# Lenght = Size - (offset * 2)
 	sub	$a3, $a3, $t1
-	
-	subu	$sp, $sp, 20		# Draw a vertical lines
+boarder_loop:
+		
+	subu	$sp, $sp, 28		# Draw a vertical lines
 	sw	$ra, 0($sp)
 	sw	$a0, 4($sp)
 	sw	$a1, 8($sp)
 	sw	$a2, 12($sp)
 	sw	$a3, 16($sp)
+	sw	$t4, 20($sp)
+	sw	$t2, 24($sp)
+	mul	$t0, $t2, $t4		# X += divider * counter
+	add	$a0, $a0, $t0
 	jal	DrawVertLine
 	lw	$ra, 0($sp)
 	lw	$a0, 4($sp)
 	lw	$a1, 8($sp)
 	lw	$a2, 12($sp)
 	lw	$a3, 16($sp)
-	addu	$sp, $sp, 20
+	lw	$t4, 20($sp)
+	lw	$t2, 24($sp)
+	addu	$sp, $sp, 28
 	
-	subu	$sp, $sp, 4		# Draw a horizontal line
+	subu	$sp, $sp, 16		# Draw a horizontal line
 	sw	$ra, 0($sp)
+	sw	$t4, 4($sp)
+	sw	$t2, 8($sp)
+	sw	$a1, 12($sp)
+	mul	$t0, $t2, $t4		# Y += divider * counter
+	add	$a1, $a1, $t0
 	jal	DrawHorzLine
 	lw	$ra, 0($sp)
-	addu	$sp, $sp, 4
+	lw	$t4, 4($sp)
+	lw	$t2, 8($sp)
+	lw	$a1, 12($sp)
+	addu	$sp, $sp, 16
+	
+	addi	$t4, $t4, 3		# Increment the loop counter
+	blt	$t4, 10, boarder_loop	# If counter is less than 10, go back
 	
 	jr	$ra
 	
@@ -314,7 +412,7 @@ board_loop:
 # Load the board from a text file
 #======================================================================================	
 LoadBoard:
-	la	$a0, TempText		# Use the temporary text file for now
+	la	$a0, BoardText		# Use the text file stored at the selected location
 	li	$a1, 0			# Read in mode
 	li	$a2, 0			# Mode is ignored
 	li	$v0, 13			# Prepare to open a text file
@@ -675,6 +773,216 @@ GetPositionOffset:
 	mul	$v1, $a1, $t2		# Y = y * box_width + offset
 	add	$v1, $v1, $t3
 
+	jr	$ra
+
+#======================================================================================
+# * Check Victory
+#--------------------------------------------------------------------------------------
+# Evaluate if the player has won or not
+# @return: $v0 as a 1 if the player has won, or a 0 if they haven't
+#======================================================================================	
+CheckVictory:
+
+	li	$a0, 0			# Setup a loop counter
+win_loop:
+	subu	$sp, $sp, 8		# Check the vertical
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	jal	CheckHorizontal
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	addu	$sp, $sp, 8
+	beqz	$v0, check_failed
+	
+	subu	$sp, $sp, 8		# Check the vertical
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	jal	CheckVertical
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	addu	$sp, $sp, 8
+	beqz	$v0, check_failed
+	
+	subu	$sp, $sp, 8		# Check the vertical
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	jal	CheckQuadrent
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	addu	$sp, $sp, 8
+	beqz	$v0, check_failed
+	
+	addi	$a0, $a0, 1		# Increment the loop counter
+	blt	$a0, 9, win_loop	# Return if there's still segments to check
+	
+check_completed:
+	li	$v0, 1			# Return a success
+	jr	$ra
+	
+check_failed:
+	li	$v0, 0			# Return a failure
+	jr	$ra
+	
+#======================================================================================
+# * Check Horizontal
+#--------------------------------------------------------------------------------------
+# Evaluate if the player has filled in a horizontal
+# @param: $a0 is the row being checked
+# @return: $v0 as a 1 if the player has completed the row, or a 0 if they haven't
+#======================================================================================	
+CheckHorizontal:
+	li	$t0, 0			# Setup the information queue to be checked
+	
+	la	$t3, DefaultBoard	# Get the board	
+	li	$t1, 0			# Setup a loop counter
+check_horz_loop:
+	mul	$t2, $a0, 9		# Get the offset of the row
+	add	$t2, $t2, $t1		# Find the position in the cell
+	
+	add	$t4, $t3, $t2		# Use that offset to find the value in the board
+	lb	$t5, 0($t4)		# Get character in the spot
+	andi	$t5, $t5, 0xf		# Only keep the lower 4 bits of the number
+	beq	$t5, 0, horz_failed	# Fail if there's an empty space
+	
+	sub	$t5, $t5, 1		# Get 1 less than the number in the space
+	li	$t6, 1			# Get a single bit to place in the register
+	sllv	$t6, $t6, $t5		# Shift the bit down by the specified number of bits
+	or	$t0, $t0, $t6		# Set that given bit to true
+	
+	addi	$t1, $t1, 1		# Increment the loop counter
+	blt	$t1, 9, check_horz_loop	# Go back if necessary
+	
+	bne	$t0, 0x1ff, horz_failed	# Check if all 9 numbers are present, if not, fail
+	
+horz_passed:
+	li	$v0, 1			# Return a success
+	jr	$ra
+	
+horz_failed:
+	li	$v0, 0			# Return a failure
+	jr	$ra
+	
+#======================================================================================
+# * Check Vertical
+#--------------------------------------------------------------------------------------
+# Evaluate if the player has filled in a vertical
+# @param: $a0 is the column being checked
+# @return: $v0 as a 1 if the player has completed the column, or a 0 if they haven't
+#======================================================================================	
+CheckVertical:
+	li	$t0, 0			# Setup the information queue to be checked
+	
+	la	$t3, DefaultBoard	# Get the board	
+	li	$t1, 0			# Setup a loop counter
+check_vert_loop:
+	mul	$t2, $t1, 9		# Get the offset of the column
+	add	$t2, $t2, $a0		# Find the position in the cell
+	
+	add	$t4, $t3, $t2		# Use that offset to find the value in the board
+	lb	$t5, 0($t4)		# Get character in the spot
+	andi	$t5, $t5, 0xf		# Only keep the lower 4 bits of the number
+	beq	$t5, 0, vert_failed	# Fail if there's an empty space
+	
+	sub	$t5, $t5, 1		# Get 1 less than the number in the space
+	li	$t6, 1			# Get a single bit to place in the register
+	sllv	$t6, $t6, $t5		# Shift the bit down by the specified number of bits
+	or	$t0, $t0, $t6		# Set that given bit to true
+	
+	addi	$t1, $t1, 1		# Increment the loop counter
+	blt	$t1, 9, check_vert_loop	# Go back if necessary
+	
+	bne	$t0, 0x1ff, vert_failed	# Check if all 9 numbers are present, if not, fail
+	
+vert_passed:
+	li	$v0, 1			# Return a success
+	jr	$ra
+	
+vert_failed:
+	li	$v0, 0			# Return a failure
+	jr	$ra
+	
+#======================================================================================
+# * Check Quadrent
+#--------------------------------------------------------------------------------------
+# Evaluate if the player has filled in a quadrent
+# @param: $a0 is the quadrent being checked
+# @return: $v0 as a 1 if the player has completed the quadrent, or a 0 if they haven't
+#======================================================================================	
+CheckQuadrent:
+	li	$t0, 0			# Setup the information queue to be checked
+	
+	la	$t3, DefaultBoard	# Get the board	
+	li	$t1, 0			# Setup a loop counter
+check_cell_loop:
+	rem	$t4, $a0, 3		# Get the column of the cell
+	mul	$t4, $t4, 3
+	rem	$t6, $t1, 3
+	add	$t4, $t4, $t6		# X = (quadrent % 3) * 3 + (i % 3)
+	
+	div	$t5, $a0, 3		# Get the row of the cell
+	mul	$t5, $t5, 3
+	div	$t6, $t1, 3
+	add	$t5, $t5, $t6		# Y = (quadrent / 3) * 3 + (i / 3)
+	
+	mul	$t2, $t5, 9		# Pos = Y * 9 + X
+	add	$t2, $t2, $t4
+	
+	add	$t4, $t3, $t2		# Use that offset to find the value in the board
+	lb	$t5, 0($t4)		# Get character in the spot
+	andi	$t5, $t5, 0xf		# Only keep the lower 4 bits of the number
+	beq	$t5, 0, cell_failed	# Fail if there's an empty space
+	
+	sub	$t5, $t5, 1		# Get 1 less than the number in the space
+	li	$t6, 1			# Get a single bit to place in the register
+	sllv	$t6, $t6, $t5		# Shift the bit down by the specified number of bits
+	or	$t0, $t0, $t6		# Set that given bit to true
+	
+	addi	$t1, $t1, 1		# Increment the loop counter
+	blt	$t1, 9, check_cell_loop	# Go back if necessary
+	
+	bne	$t0, 0x1ff, cell_failed	# Check if all 9 numbers are present, if not, fail
+	
+cell_passed:
+	li	$v0, 1			# Return a success
+	jr	$ra
+	
+cell_failed:
+	li	$v0, 0			# Return a failure
+	jr	$ra
+	
+#======================================================================================
+# * Play Fanfare
+#--------------------------------------------------------------------------------------
+# Tells the user they win
+#======================================================================================
+PlayFanfare:
+	la	$t0, fanfare	# Load the fanfare into the memory
+	li	$a2, 57		# Play the song on a trumpet
+	li	$a3, 127	# Max volume
+	
+music_loop:
+	lh	$a0, 0($t0)	# Get the pitch to play
+	sub	$a0, $a0, 2	# Transpose it from Bb to C
+	lh	$a1, 2($t0)	# Get the duration of the pitch
+	
+	beqz	$a1, music_over	# Jump to the end of the song if no duration
+	blez	$a0, play_rest	# Play a rest if nothing
+	
+play_note:
+	li	$v0, 33		# Play the note
+	syscall
+	j	note_over
+	
+play_rest:
+	move	$a0, $a1	# Sleep for the duration
+	li	$v0, 32
+	syscall
+	
+note_over:
+	addiu	$t0, $t0, 4	# Move forward by a note
+	j	music_loop	# Go back to the next note
+	
+music_over:
 	jr	$ra
 	
 #======================================================================================
