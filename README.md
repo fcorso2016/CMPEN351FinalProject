@@ -13,5 +13,6 @@ Using the graphical display, select the following settings.
 ![alt text](https://i.imgur.com/h5kUf7E.png)
 
 Alteratively either of the following may also be used:
+
 ![alt text](https://i.imgur.com/fMMNPPA.png) ![alt text](https://i.imgur.com/LHC5jOR.png)
 
