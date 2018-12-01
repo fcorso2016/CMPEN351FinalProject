@@ -9,7 +9,9 @@ Once the board has been loaded the player navigates the board which is rendered 
 
 This is a program written in the MIPS Assembly Language using the Mars simulator to run it. To properly utilize Mars the following configuration should be used:
 
-    Using the graphical display, select the following settings.
-    ![alt text](https://i.imgur.com/h5kUf7E.png)
+Using the graphical display, select the following settings.
+![alt text](https://i.imgur.com/h5kUf7E.png)
 
-    
+Alteratively either of the following may also be used:
+![alt text](https://i.imgur.com/fMMNPPA.png) ![alt text](https://i.imgur.com/LHC5jOR.png)
+
