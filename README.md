@@ -28,7 +28,7 @@ Once the board has been loaded the player navigates the board which is rendered 
 
 ### Architectural Design
 
-#### Apperance and Game Flow
+#### Appearance and Game Flow
 
 When the program first starts the bitmap display should clear itself making the entire screen black to prevent any conflicts with previous runs using Mars. Once that's done the board will appear in the center of the screen like so:
 
@@ -60,7 +60,7 @@ The victory fanfare algorithm already exists from the Simon Says lab, so that si
 
 ### Debug Issues
 
-The biggest issue with the bisuals came from making sure the white lines were all on time (i.e. there were no gray lines displaying in-front). This was solved by redrawing all the white lines again after everything was drawin the first time.
+The biggest issue with the visuals came from making sure the white lines were all on time (i.e. there were no gray lines displaying in-front). This was solved by redrawing all the white lines again after everything was drawin the first time.
 
 Another issue with the process was loading in from a text file, as the text files included \n and \r characters in them that had to be accounted for. This was done, by having a second counter in the loading loop that would only count up if it encountered a numeric character.
 
