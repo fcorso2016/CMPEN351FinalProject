@@ -87,41 +87,18 @@ Index:		.word	0
 # * The notes of the fanfare
 #--------------------------------------------------------------------------------------
 fanfare: # The pitch and the duration
-	.half	84,  150		# Measure 1
-	.half	84,  150	
-	.half	 0,  150
-	.half	82,  150
+	.half	77,  109	# Measure 1
+	.half	77,  109
+	.half	77,  109
+	.half	77,  326
+	.half	73,  326
+	.half	75,  326
 	################
-	.half	 0,   75		# Measure 2
-	.half	84,  150
-	.half	82,   75
-	.half	84,  150
-	.half	82,  150
+	.half	77,  217	# Measure 2
+	.half	75,  109
+	.half	77,  978
 	################
-	.half	79,  150		# Measure 3
-	.half	79,  150
-	.half	77,  150
-	.half	79,  150
-	################
-	.half	 0,  600		# Measure 4
-	################
-	.half	84,  150		# Measure 5
-	.half	84,  150
-	.half	82,  150
-	.half	84,  150
-	################
-	.half	84,   75		# Measure 6
-	.half	84,  150
-	.half	82,   75
-	.half	84,  150
-	.half	82,  150
-	################
-	.half	79,  150		# Measure 7
-	.half	79,  150
-	.half	77,  150
-	.half	74,  150
-	################
-	.half	 0,    0		# Music terminator
+	.half	 0,    0	# Music terminator
 		
 .text
 #======================================================================================
