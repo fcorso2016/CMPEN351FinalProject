@@ -464,16 +464,45 @@ row_loop:
 	lb	$a2, 0($t0)		# Get the number at the given position
 	andi	$a2, $a2, 0xf		# Only keep the lower 4 bits of the number
 
-	subu	$sp, $sp, 12		# Draw the number saved at those coordinate
+	subu	$sp, $sp, 16		# Draw the number saved at those coordinate
 	sw	$ra, 0($sp)
 	sw	$a0, 4($sp)
 	sw	$a1, 8($sp)
+	sw	$a2, 12($sp)
 	jal	DrawNum
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	lw	$a1, 8($sp)
+	lw	$a2, 12($sp)
+	addu	$sp, $sp, 16
+	
+	beqz	$a2, indicator_done	# If no number, don't dawn an indicator
+	
+	subu	$sp, $sp, 12		# Get the position of the number
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	sw	$a1, 8($sp)
+	jal	GetPositionOffset
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	lw	$a1, 8($sp)
+	addu	$sp, $sp, 12
+	
+	subu	$sp, $sp, 12		# Draw a square to indicate the fact that it's not editable
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	sw	$a1, 8($sp)
+	addi	$a0, $v0, 4		# Offset the box by 4
+	addi	$a1, $v1, 4
+	li	$a2, 3			# Make the box red
+	li	$a3, 2			# The box ix 2x2
+	jal	DrawBox
 	lw	$ra, 0($sp)
 	lw	$a0, 4($sp)
 	lw	$a1, 8($sp)
 	addu	$sp, $sp, 12
 
+indicator_done:
 	addi	$a1, $a1, 1		# Increment the y counter
 	blt	$a1, 9, row_loop	# and go back if less than 9
 	
@@ -598,7 +627,7 @@ forw_loop:
 # Draws a box on the screen
 # @param: $a0 the x-coordinate to start at
 # @param: $a1 the y-coordinate to start at
-# @param: $a2 the color of the line
+# @param: $a2 the color of the box
 # @param: $a3 the sizes of the box
 #======================================================================================	
 DrawBox:
