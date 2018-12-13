@@ -32,11 +32,11 @@ Once the board has been loaded the player navigates the board which is rendered 
 
 When the program first starts the bitmap display should clear itself making the entire screen black to prevent any conflicts with previous runs using Mars. Once that's done the board will appear in the center of the screen like so:
 
-![alt text](https://i.imgur.com/aHmfGj2.png)
+![alt text](https://i.imgur.com/QjqJzhQ.png)
 
 The user moves around the board using WASD controls (the console in Mars must be selected in order to do this). When the user wants to select a square, they should press the E key, which will cause the cursor to turn yellow, like so:
 
-![alt text](https://i.imgur.com/mkoEMg3.png)
+![alt text](https://i.imgur.com/30Hpqpa.png)
 
 Be forewarned that the user cannot make changes to a pre existing numbers. Pressing E on one of those will do nothing. The user can deselect a number by pressing Q. Alternatively the user can enter a number 1-9 to place it in. Any other keypress will be ignored.
 
